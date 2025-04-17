@@ -271,10 +271,14 @@
     /* Specific button styling */
     #showWinningMovesBtn { background-color: #d9534f; }
     #showWinningMovesBtn:hover { background-color: #c9302c; }
-    #toggleMovesBtn, #hintBtn { background-color: #f0ad4e; }
-    #toggleMovesBtn:hover, #hintBtn:hover { background-color: #ec971f; }
+    #toggleMovesBtn { background-color: #5bc0de; }
+    #toggleMovesBtn:hover { background-color: #31b0d5; }
+    #hintBtn { background-color: #ff9800; }
+    #hintBtn:hover { background-color: #e68900; }
     #resetBtn { background-color: #4CAF50; }
     #resetBtn:hover { background-color: #45a049; }
+    #resetBtn.red { background-color: #d9534f; }
+    #resetBtn.red:hover { background-color: #c9302c !important; }
     #hintMessage, #winningMovesList {
       margin-top: 8px;
       font-size: 0.95em;
@@ -291,7 +295,7 @@
             <li>The game is played on a standard <code>8 x 8</code> chessboard where two players take turns placing kings.</li>
             <li>A king can <strong>not</strong> be placed on a square attacked by another king already on the board.</li>
             <li>As in chess, a king attacks all adjacent squares, including diagonals (the 8 squares around it).</li>
-            <li>The player who <strong>cannot make a legal move</strong> on their turn <strong>loses</strong>.</li>
+            <li>The player who <strong>cannot place a new king</strong> on their turn <strong>loses</strong>.</li>
         </ul>
         <p class="note">
             <strong>Note:</strong> You can play this game on a physical chessboard using pawns to represent kings. 8 kings per player is always enough.
@@ -345,24 +349,26 @@
     
 
     <div id="controlsHintsSection">
-        <div class="button-group">
-          <button id="toggleMovesBtn">Show Available Moves</button>
-          <button id="hintBtn">Show Winning Side</button>
-          <button id="showWinningMovesBtn" style="display: none;">Show Winning Moves</button>
-          <button id="resetBtn" style="display: none;">Reset Game</button>
-        </div>
-        <div id="hintMessage" style="display: none;"></div>
-        <div id="winningMovesList" style="display: none;"></div>
+      <div class="button-group">
+        <button id="toggleMovesBtn">Show Available Moves</button>
+        <button id="hintBtn">Show Winning Side</button>
+        <button id="showWinningMovesBtn" style="display: none;">Show Winning Moves</button>
+      </div>
+      <div id="hintMessage" style="display: none;"></div>
+      <div id="winningMovesList" style="display: none;"></div>
     </div>
+    <div id="resetBtnContainer" style="width:100%; display: flex; justify-content: center; margin-top: 10px;">
+      <button id="resetBtn" style="display: inline-block;">Reset Game</button>
     </div>
-
+  </div>
+  <script src="assets/confetti.browser.min.js"></script>
   <script>
     // --- Global parameters and constants ---
     const BOARD_SIZE = 8;
     const N_SQUARES = BOARD_SIZE * BOARD_SIZE;
     const EMPTY = "";
-    const WHITE_KING_IMG = "wK.svg";
-    const BLACK_KING_IMG = "bK.svg";
+    const WHITE_KING_IMG = "assets/wK.svg";
+    const BLACK_KING_IMG = "assets/bK.svg";
     const MEMO_FILENAME = "memo_states.bin";
     const SAVE_GRUNDY_ZERO_STATES = true;
     const SAVE_NON_ZERO_GRUNDY_STATES = false;
@@ -531,7 +537,7 @@
     }
     function initBoard() {
       board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY)); boardDiv.innerHTML = ""; const cellElements = [];
-      for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { const cellDiv = document.createElement("div"); cellDiv.classList.add("cell"); if ((r + c) % 2 === 0) cellDiv.classList.add("light"); else cellDiv.classList.add("dark"); const cellInner = document.createElement("div"); cellInner.className = "cell-inner"; cellDiv.id = `cell-${r}-${c}`; cellDiv.appendChild(cellInner); cellDiv.addEventListener("click", () => userMove(r, c)); cellElements.push(cellDiv); } }
+      for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { const cellDiv = document.createElement("div"); cellDiv.classList.add("cell"); if ((r + c) % 2 === 0) cellDiv.classList.add("dark"); else cellDiv.classList.add("light"); const cellInner = document.createElement("div"); cellInner.className = "cell-inner"; cellDiv.id = `cell-${r}-${c}`; cellDiv.appendChild(cellInner); cellDiv.addEventListener("click", () => userMove(r, c)); cellElements.push(cellDiv); } }
       for (let display_r = BOARD_SIZE - 1; display_r >= 0; display_r--) { for (let c = 0; c < BOARD_SIZE; c++) { const index = display_r * BOARD_SIZE + c; boardDiv.appendChild(cellElements[index]); } }
     }
     function indexToCoord(r, c) { return String.fromCharCode(97 + c) + (r + 1).toString(); }
@@ -546,28 +552,28 @@
       if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) { console.error("Invalid coordinates in placeKing:", r, c); return; } const imgSrc = (color === "white") ? WHITE_KING_IMG : BLACK_KING_IMG; board[r][c] = imgSrc; const cellDiv = document.getElementById(`cell-${r}-${c}`); if (!cellDiv) { console.error("Could not find cell element for:", r, c); return; } const cellInner = cellDiv.querySelector('.cell-inner'); if (cellInner) { cellInner.innerHTML = ''; const img = document.createElement("img"); img.src = imgSrc; img.alt = color + " king"; cellInner.appendChild(img); } else { console.error("Could not find inner cell element for:", r, c); } cellDiv.style.cursor = "default"; const newCell = cellDiv.cloneNode(true); cellDiv.parentNode.replaceChild(newCell, cellDiv);
     }
 
-     function toggleLegalMoves() {
-         if (gameOver) return;
-         // Remove existing indicators (both types)
-         document.querySelectorAll(".legal-indicator, .winning-move-indicator").forEach(ind => ind.remove());
+    function toggleLegalMoves() {
+        if (gameOver) return;
+        // Remove only legal move indicators, not winning move indicators
+        document.querySelectorAll(".legal-indicator").forEach(dot => dot.remove());
 
-         if (showLegal) {
-             toggleMovesBtn.textContent = "Show Available Moves";
-             showLegal = false;
-         } else {
-             const moves = getLegalMoves();
-             moves.forEach(move => {
-                 const cellInner = document.querySelector(`#cell-${move.r}-${move.c} .cell-inner`);
-                 if (cellInner && cellInner.innerHTML.trim() === '') {
-                     const dot = document.createElement("div");
-                     dot.className = "legal-indicator";
-                     cellInner.appendChild(dot);
-                 }
-             });
-             toggleMovesBtn.textContent = "Hide Available Moves";
-             showLegal = true;
-         }
-     }
+        if (showLegal) {
+            toggleMovesBtn.textContent = "Show Available Moves";
+            showLegal = false;
+        } else {
+            const moves = getLegalMoves();
+            moves.forEach(move => {
+                const cellInner = document.querySelector(`#cell-${move.r}-${move.c} .cell-inner`);
+                if (cellInner && cellInner.innerHTML.trim() === '') {
+                    const dot = document.createElement("div");
+                    dot.className = "legal-indicator";
+                    cellInner.appendChild(dot);
+                }
+            });
+            toggleMovesBtn.textContent = "Hide Available Moves";
+            showLegal = true;
+        }
+    }
 
     function updateMessage(msg) { messageDiv.textContent = msg; }
     function userMove(r, c) {
@@ -678,8 +684,43 @@
     }
 
     async function aiMove() {
-      if (gameOver) return; const moves = getLegalMoves(); if (moves.length === 0) { gameOver = true; updateMessage("AI cannot move. You win!"); resetBtn.style.display = "inline-block"; toggleMovesBtn.style.display = 'none'; hintBtn.disabled = true; return; } updateMessage("AI is thinking...");
-      if (difficulty === "easy") { aiMoveEasy(); } else { if (!memoData && memoDataPromise) { console.log("AI (Hard): Waiting for memoData to load..."); try { await memoDataPromise; console.log("AI (Hard): memoData finished loading."); if (memoData && memoData.size > 0) { aiMoveHard(); } else { console.warn("Hard AI using Easy: memoData still not available after wait."); aiMoveEasy(); } } catch (error) { console.error("Error occurred while waiting for memoData:", error); console.warn("Using Easy AI due to error during data loading wait."); aiMoveEasy(); } } else if (memoData && memoData.size > 0) { aiMoveHard(); } else { console.warn("Hard difficulty selected, but memo data not available. Using Easy AI."); aiMoveEasy(); } }
+      if (gameOver) return;
+      const moves = getLegalMoves();
+      if (moves.length === 0) {
+        gameOver = true;
+        updateMessage("AI cannot move. You win!");
+        updateResetBtnStyle();
+        toggleMovesBtn.style.display = 'none';
+        hintBtn.disabled = true;
+        return;
+      }
+      updateMessage("AI is thinking...");
+      if (difficulty === "easy") {
+        aiMoveEasy();
+      } else {
+        if (!memoData && memoDataPromise) {
+          console.log("AI (Hard): Waiting for memoData to load...");
+          try {
+            await memoDataPromise;
+            console.log("AI (Hard): memoData finished loading.");
+            if (memoData && memoData.size > 0) {
+              aiMoveHard();
+            } else {
+              console.warn("Hard AI using Easy: memoData still not available after wait.");
+              aiMoveEasy();
+            }
+          } catch (error) {
+            console.error("Error occurred while waiting for memoData:", error);
+            console.warn("Using Easy AI due to error during data loading wait.");
+            aiMoveEasy();
+          }
+        } else if (memoData && memoData.size > 0) {
+          aiMoveHard();
+        } else {
+          console.warn("Hard difficulty selected, but memo data not available. Using Easy AI.");
+          aiMoveEasy();
+        }
+      }
     }
 
     function resetHints() {
@@ -696,6 +737,58 @@
         hintBtn.disabled = gameOver || !(memoData && memoData.size > 0);
     }
 
+    function updateResetBtnStyle() {
+      if (!gameOver) {
+        resetBtn.classList.add("red");
+        resetBtn.style.display = "inline-block";
+        resetBtnContainer.style.display = "flex";
+      } else {
+        resetBtn.classList.remove("red");
+        resetBtn.style.display = "inline-block";
+        resetBtnContainer.style.display = "flex";
+      }
+    }
+
+    function hideResetBtn() {
+      resetBtn.style.display = "none";
+      resetBtnContainer.style.display = "none";
+    }
+
+    function confettiBurst() {
+        // Use canvas-confetti for a smooth, natural burst from the center upward and then falling
+        const duration = 1.2 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = {
+            startVelocity: 35,
+            spread: 80,
+            ticks: 400,
+            zIndex: 9999
+        };
+
+        function randomInRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        const interval = setInterval(function() {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+                return;
+            }
+
+            confetti({
+                particleCount: 10,
+                angle: randomInRange(60, 120),
+                spread: randomInRange(65, 95),
+                origin: { x: 0.5, y: 0.6 },
+                colors: ["#FFD700", "#FF69B4", "#00CFFF", "#7CFC00", "#FF6347", "#FFB347"],
+                gravity: 0.9,
+                scalar: randomInRange(0.8, 1.2),
+                ticks: 300
+            });
+        }, 120);
+    }
      
     function nextTurn() {
       resetHints();
@@ -712,15 +805,26 @@
         if (twoPlayerMode) {
           updateMessage("No legal moves left. " + (currentTurn === "white" ? "Black" : "White") + " wins!");
         } else {
+          // Player wins if it's AI's turn and AI cannot move
+          const playerWon = (currentTurn !== userColor);
           updateMessage(currentTurn === userColor ? "You cannot move. AI wins!" : "AI cannot move. You win!");
+          if (playerWon) confettiBurst();
         }
-        resetBtn.style.display = "inline-block";
         toggleMovesBtn.style.display = 'none';
         hintBtn.style.display = 'none';
         showWinningMovesBtn.style.display = "none";
         hintBtn.disabled = true;
+        updateResetBtnStyle(); // Now green
+
+        // Hide the hints section after game ends
+        document.getElementById("controlsHintsSection").style.display = "none";
+        // Show the reset button after game ends
+        resetBtnContainer.style.display = "flex";
+        resetBtn.style.display = "inline-block";
         return;
       }
+      updateResetBtnStyle(); // Red during game
+      document.getElementById("controlsHintsSection").style.display = "block";
       if (twoPlayerMode) {
         updateMessage((currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)) + "'s turn.");
       } else {
@@ -750,12 +854,17 @@
 
       currentTurn = "white";
       updateMessage(twoPlayerMode ? "White's turn." : (currentTurn === userColor) ? "Your turn." : "AI's turn.");
-      resetBtn.style.display = "none";
       toggleMovesBtn.style.display = 'inline-block';
       showLegal = false;
       toggleMovesBtn.textContent = "Show Available Moves";
       document.querySelectorAll(".legal-indicator, .winning-move-indicator").forEach(ind => ind.remove());
       resetHints();
+
+      updateResetBtnStyle(); // Red during game
+      resetBtnContainer.style.display = "flex";
+      resetBtn.style.display = "inline-block";
+      // Show the hints section during the game
+      document.getElementById("controlsHintsSection").style.display = "block";
 
       if (!twoPlayerMode && currentTurn !== userColor) {
           setTimeout(() => { (async () => { await aiMove(); })(); }, 500);
@@ -773,6 +882,7 @@
         document.getElementById("setup").style.display = "block"; // Show setup
         // Reset button is hidden by default in setup view
         // No need to reload memoData
+        hideResetBtn();
     }
 
     // --- Initialization ---
@@ -786,15 +896,12 @@
 
     startBtn.addEventListener("click", () => {
       const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
-       // Allow starting even if data is loading/failed
-       // Alert removed
       difficulty = selectedDifficulty;
       document.getElementById("setup").style.display = "none";
       document.getElementById("game").style.display = "block";
       startGame();
     });
 
-    // --- Use soft reset ---
     resetBtn.addEventListener("click", resetGame);
 
     toggleMovesBtn.addEventListener("click", toggleLegalMoves);

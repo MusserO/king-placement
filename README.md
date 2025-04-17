@@ -6,7 +6,7 @@ This project implements a solver and web interface for the **King Placement Game
 - The game is played on a standard `8 x 8` chessboard where two players take turns placing kings. 
 - A king can **not** be placed on a square attacked by another king already on the board.
 - As in chess, a king attacks all adjacent squares, including diagonals (the 8 squares around it).
-- The player who **cannot make a legal move** on their turn **loses**.
+- The player who **cannot place a new king** on their turn **loses**.
 
 > **Note:** You can play this game on a physical chessboard using pawns to represent kings. 8 kings per player is always enough.
 
@@ -18,9 +18,17 @@ This project implements a solver and web interface for the **King Placement Game
 - **AI Player**: Choose between an easy AI that plays randomly and a hard AI that uses the precomputed game states to play optimally.
 
 ## Project Structure
- ├── solver.cpp # C++ implementation of the solver  
- ├── index.html # Web-based UI for the game  
- ├── memo_states.bin # Precomputed memoization table  
+```text
+├── solver.cpp              # C++ implementation of the solver  
+├── index.html              # Web-based UI for the game  
+├── memo_states.bin         # Precomputed memoization table  
+├── assets/                 # Static assets (SVGs, confetti JS)  
+│   ├── bK.svg  
+│   ├── wK.svg  
+│   └── canvas-confetti.min.js  
+├── README.md               # Project documentation  
+└── LICENSE                 # License information  
+```
 
 ## How to Use
 
