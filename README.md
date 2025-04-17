@@ -37,6 +37,8 @@ This will output the Grundy values and save the memoization table in a file. Tak
 ### 2. Run the Web Interface
 Open index.html in a browser to play the game against the AI. The AI uses the precomputed memo_states.bin for optimal moves.
 
+**Try it online:** [mussero.github.io/king-placement/](https://mussero.github.io/king-placement/)
+
 ## Attribution
 The `wK.svg` and `bK.svg` files used in the web interface are made by Colin M.L. Burnett and are licensed under the [GPLv2+](https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt) license.
 
