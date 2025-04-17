@@ -18,8 +18,8 @@ This project implements a solver and web interface for the **King Placement Game
 - **AI Player**: Choose between an easy AI that plays randomly and a hard AI that uses the precomputed game states to play optimally.
 
 ## Project Structure
- ├── king_game.cpp # C++ implementation of the solver  
- ├── king_game.html # Web-based UI for the game  
+ ├── solver.cpp # C++ implementation of the solver  
+ ├── index.html # Web-based UI for the game  
  ├── memo_states.bin # Precomputed memoization table  
 
 ## How to Use
@@ -28,14 +28,14 @@ This project implements a solver and web interface for the **King Placement Game
 Compile the C++ solver to precompute Grundy values and generate `memo_states.bin`.
 
 ```bash
-g++ -std=c++17 -O3 king_game.cpp -o king_game
-./king_game
+g++ -std=c++17 -O3 solver.cpp -o solver
+./solver
 ```
 
 This will output the Grundy values and save the memoization table in a file. Takes around two minutes to complete.
 
 ### 2. Run the Web Interface
-Open king_game.html in a browser to play the game against the AI. The AI uses the precomputed memo_states.bin for optimal moves.
+Open index.html in a browser to play the game against the AI. The AI uses the precomputed memo_states.bin for optimal moves.
 
 ## Attribution
 The `wK.svg` and `bK.svg` files used in the web interface are made by Colin M.L. Burnett and are licensed under the [GPLv2+](https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt) license.
