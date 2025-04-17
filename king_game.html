@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>King Placement Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Reset and base styling */
+    * { box-sizing: border-box; }
+    body, h1, p, ul, li { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background-color: #f7f7f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 15px;
+    }
+    h1 {
+      margin: 15px 0;
+      font-size: 2em;
+      color: #333;
+    }
+    /* Panels */
+    #setup, #game {
+      width: 100%;
+      max-width: 800px;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      margin-bottom: 20px;
+      border-radius: 5px;
+      text-align: center;
+      position: relative;
+      overflow-x: auto;
+    }
+    #game {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Game Rules Styling */
+    #rules {
+      text-align: left;
+      margin-bottom: 20px;
+      padding: 10px 15px;
+      border: 1px solid #eee;
+      background-color: #fdfdfd;
+      border-radius: 4px;
+    }
+    #rules h2 { font-size: 1.1em; margin-bottom: 10px; text-align: center; }
+    #rules ul { list-style-position: inside; padding-left: 0; margin-left: 0; }
+    #rules li { margin-bottom: 8px; line-height: 1.4; }
+    #rules code {
+      background-color: #eee;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+    #rules strong { font-weight: 600; }
+    #rules .note {
+      margin-top: 15px;
+      font-size: 0.9em;
+      font-style: italic;
+      color: #555;
+    }
+    /* Stylish radio groups */
+    .radio-group {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 15px;
+    }
+    .radio-group label {
+      font-size: 1em;
+      color: #333;
+    }
+    .radio-group input[type="radio"] { margin-right: 5px; }
+    
+    /* Responsive Board and Coordinate Layout */
+    #boardContainer {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto 20px;
+      box-sizing: border-box;
+      padding-left: 20px;
+      padding-right: 20px;
+      padding-bottom: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #boardWrapper {
+      width: 100%;
+      max-width: 100%;
+      border: 2px solid #333;
+      position: relative;
+      background: #fff;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: min(100vw - 40px, 100%, 600px);
+      aspect-ratio: 1 / 1;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: 100%;
+      min-width: 0;
+      min-height: 0;
+      aspect-ratio: 1 / 1;
+    }
+
+    @media (max-width: 600px) {
+      #game {
+        padding: 5vw 0;
+      }
+      #boardWrapper {
+        max-width: 96vw;
+        max-height: 96vw;
+      }
+      #boardContainer {
+        padding-left: 8vw;
+        padding-bottom: 8vw;
+      }
+    }
+    
+    #coordLeft, #coordBottom {
+      position: absolute;
+      color: #555;
+      font-size: clamp(0.6rem, 2vw, 0.9rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    #coordLeft {
+      top: 0;
+      bottom: 0;
+      left: -30px;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 28px;
+      height: 100%;
+    }
+    #coordLeft span {
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 12.5%; /* 100% / 8 rows */
+    }
+    #coordBottom {
+      left: 0;
+      right: 0;
+      bottom: -25px;
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+      height: 22px;
+    }
+    #coordBottom span {
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 12.5%; /* 100% / 8 columns */
+    }
+    
+    /* Board cells */
+    .cell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .cell-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1rem, 6vmin, 2.5rem);
+      user-select: none;
+    }
+    .cell-inner img {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      margin: 0;
+      padding: 0;
+    }
+    .light { background-color: #D2B48C; }
+    .dark { background-color: #8B4513; }
+    
+    /* Indicators */
+    .legal-indicator, .winning-move-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .legal-indicator {
+      width: 12px;
+      height: 12px;
+      background-color: rgba(0, 255, 0, 0.6);
+    }
+    .winning-move-indicator {
+      width: calc(100% - 10px);
+      height: calc(100% - 10px);
+      border: 3px solid limegreen;
+      background: none;
+    }
+    
+    /* Message and buttons */
+    #message {
+      font-size: 1.2rem;
+      margin: 10px 0;
+      min-height: 1.5em;
+      color: #333;
+    }
+    #controlsHintsSection {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      text-align: left;
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 0.9rem;
+      margin: 5px;
+      border: none;
+      border-radius: 3px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    button:hover { background-color: #45a049; }
+    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    #loadingMessage {
+      color: #888;
+      font-style: italic;
+      margin-top: 10px;
+      min-height: 1.2em;
+    }
+    
+    /* Specific button styling */
+    #showWinningMovesBtn { background-color: #d9534f; }
+    #showWinningMovesBtn:hover { background-color: #c9302c; }
+    #toggleMovesBtn, #hintBtn { background-color: #f0ad4e; }
+    #toggleMovesBtn:hover, #hintBtn:hover { background-color: #ec971f; }
+    #resetBtn { background-color: #4CAF50; }
+    #resetBtn:hover { background-color: #45a049; }
+    #hintMessage, #winningMovesList {
+      margin-top: 8px;
+      font-size: 0.95em;
+      color: #333;
+    }
+  </style>    
+</head>
+<body>
+  <h1>King Placement Game</h1>
+  <div id="setup">
+    <div id="rules">
+        <h2>Rules</h2>
+        <ul>
+            <li>The game is played on a standard <code>8 x 8</code> chessboard where two players take turns placing kings.</li>
+            <li>A king can <strong>not</strong> be placed on a square attacked by another king already on the board.</li>
+            <li>As in chess, a king attacks all adjacent squares, including diagonals (the 8 squares around it).</li>
+            <li>The player who <strong>cannot make a legal move</strong> on their turn <strong>loses</strong>.</li>
+        </ul>
+        <p class="note">
+            <strong>Note:</strong> You can play this game on a physical chessboard using pawns to represent kings. 8 kings per player is always enough.
+        </p>
+    </div>
+    <div class="radio-group" id="mode-group">
+      <div>
+        <p>Game mode:</p>
+        <label>
+          <input type="radio" name="mode" value="ai" checked id="mode-ai"> Play vs AI
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="mode" value="twoplayer" id="mode-twoplayer"> Two Players
+        </label>
+      </div>
+      <div>
+        <p>Select color (white goes first):</p>
+        <label>
+          <input type="radio" name="color" value="white" checked id="color-white"> White
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="color" value="black" id="color-black"> Black
+        </label>
+      </div>
+      <div>
+        <p>Select difficulty:</p>
+        <label>
+          <input type="radio" name="difficulty" value="easy" checked id="difficulty-easy"> Easy
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="difficulty" value="hard" id="difficulty-hard"> Hard
+        </label>
+      </div>
+    </div>
+    <div id="loadingMessage" style="display: none;">Loading AI data...</div>
+    <button id="startBtn">Start Game</button>
+  </div>
+
+  <div id="game" style="display: none;">
+    <div id="message"></div>
+    <div id="boardContainer">
+      <div id="boardWrapper">
+        <div id="board"></div>
+        <div id="coordLeft"></div>
+        <div id="coordBottom"></div>
+      </div>
+    </div>
+    
+
+    <div id="controlsHintsSection">
+        <div class="button-group">
+          <button id="toggleMovesBtn">Show Available Moves</button>
+          <button id="hintBtn">Show Winning Side</button>
+          <button id="showWinningMovesBtn" style="display: none;">Show Winning Moves</button>
+          <button id="resetBtn" style="display: none;">Reset Game</button>
+        </div>
+        <div id="hintMessage" style="display: none;"></div>
+        <div id="winningMovesList" style="display: none;"></div>
+    </div>
+    </div>
+
+  <script>
+    // --- Global parameters and constants ---
+    const BOARD_SIZE = 8;
+    const N_SQUARES = BOARD_SIZE * BOARD_SIZE;
+    const EMPTY = "";
+    const WHITE_KING_IMG = "wK.svg";
+    const BLACK_KING_IMG = "bK.svg";
+    const MEMO_FILENAME = "memo_states.bin";
+    const SAVE_GRUNDY_ZERO_STATES = true;
+    const SAVE_NON_ZERO_GRUNDY_STATES = false;
+
+    // --- Game state variables ---
+    let board = [];
+    let userColor;
+    let currentTurn;
+    let gameOver = false;
+    let difficulty = "easy";
+    let showLegal = false;
+    let memoData = null;
+    let attackMasks = [];
+    let memoDataPromise = null;
+    let twoPlayerMode = false;
+
+    // --- Element references ---
+    const boardDiv = document.getElementById("board");
+    const coordLeftDiv = document.getElementById("coordLeft");
+    const coordBottomDiv = document.getElementById("coordBottom");
+    const loadingMessageDiv = document.getElementById("loadingMessage");
+    const startBtn = document.getElementById("startBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const hintMessageDiv = document.getElementById("hintMessage");
+    const showWinningMovesBtn = document.getElementById("showWinningMovesBtn");
+    const winningMovesListDiv = document.getElementById("winningMovesList");
+    const toggleMovesBtn = document.getElementById("toggleMovesBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const messageDiv = document.getElementById("message");
+    // --- Mode selection logic ---
+    const modeAI = document.getElementById('mode-ai');
+    const modeTwoPlayer = document.getElementById('mode-twoplayer');
+    const colorWhite = document.getElementById('color-white');
+    const colorBlack = document.getElementById('color-black');
+    const difficultyEasy = document.getElementById('difficulty-easy');
+    const difficultyHard = document.getElementById('difficulty-hard');
+    
+    function setModeUI() {
+      const aiSelected = modeAI.checked;
+      colorWhite.disabled = colorBlack.disabled = !aiSelected;
+      difficultyEasy.disabled = difficultyHard.disabled = !aiSelected;
+    }
+    function getSelectedMode() {
+      return modeTwoPlayer.checked ? "twoplayer" : "ai";
+    }
+
+    function getSelectedDifficulty() {
+      if (difficultyHard.checked) return "hard";
+      return "easy";
+    }
+
+    function getSelectedColor() {
+      if (colorBlack.checked) return "black";
+      return "white";
+    }
+
+    // --- Precomputation ---
+    function precomputeAttackMasks() {
+        console.log("Precomputing attack masks...");
+        attackMasks = new Array(N_SQUARES);
+        for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { const squareIndex = r * BOARD_SIZE + c; let mask = 0n; for (let dr = -1; dr <= 1; dr++) { for (let dc = -1; dc <= 1; dc++) { const nr = r + dr; const nc = c + dc; if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) { const neighborIndex = nr * BOARD_SIZE + nc; mask |= (1n << BigInt(neighborIndex)); } } } attackMasks[squareIndex] = mask; } }
+        console.log("Attack masks precomputed.");
+    }
+    async function loadMemoData() {
+        if (memoDataPromise) return memoDataPromise;
+        loadingMessageDiv.style.display = 'block';
+        loadingMessageDiv.textContent = 'Loading AI data...';
+        loadingMessageDiv.style.color = '#888';
+        startBtn.disabled = true;
+
+        // Use a web worker for parsing
+        memoDataPromise = fetch(MEMO_FILENAME)
+            .then(async response => {
+                if (!response.ok) throw new Error(`Failed to fetch ${MEMO_FILENAME}`);
+                const arrayBuffer = await response.arrayBuffer();
+                return new Promise((resolve, reject) => {
+                    // Pass config to worker
+                    const onlySaveZero = SAVE_GRUNDY_ZERO_STATES && !SAVE_NON_ZERO_GRUNDY_STATES;
+                    const workerCode = `
+                        self.onmessage = function(e) {
+                            const arrayBuffer = e.data.buffer;
+                            const onlySaveZero = e.data.onlySaveZero;
+                            const dataView = new DataView(arrayBuffer);
+                            const mapArr = [];
+                            let entrySize = onlySaveZero ? 8 : 9;
+                            const total = dataView.byteLength / entrySize;
+                            for (let offset = 0, i = 0; offset < dataView.byteLength; offset += entrySize, i++) {
+                                const state = dataView.getBigUint64(offset, true);
+                                let grundyValue = 0;
+                                if (!onlySaveZero) {
+                                    grundyValue = dataView.getUint8(offset + 8);
+                                }
+                                mapArr.push([state.toString(), grundyValue]);
+                                // Send progress every 10,000 entries
+                                if (i % 10000 === 0) {
+                                    self.postMessage({progress: Math.floor((i / total) * 100)});
+                                }
+                            }
+                            self.postMessage({done: mapArr});
+                        };
+                    `;
+                    const workerBlob = new Blob([workerCode], { type: "application/javascript" });
+                    const worker = new Worker(URL.createObjectURL(workerBlob));
+                    worker.postMessage({ buffer: arrayBuffer, onlySaveZero: SAVE_GRUNDY_ZERO_STATES && !SAVE_NON_ZERO_GRUNDY_STATES }, [arrayBuffer]);
+                    worker.onmessage = (e) => {
+                        if (e.data.progress !== undefined) {
+                            loadingMessageDiv.textContent = `Loading AI data... (${e.data.progress}%)`;
+                        } else if (e.data.done) {
+                            memoData = new Map(e.data.done);
+                            loadingMessageDiv.textContent = `AI data loaded.`;
+                            loadingMessageDiv.style.display = 'none';
+                            startBtn.disabled = false;
+                            resetHints();
+                            resolve();
+                        }
+                    };
+                    worker.onerror = (err) => {
+                        loadingMessageDiv.textContent = 'Error loading AI data! (See console)';
+                        loadingMessageDiv.style.color = 'red';
+                        startBtn.disabled = false;
+                        resetHints();
+                        reject(err);
+                    };
+                });
+            });
+        return memoDataPromise;
+    }
+
+    // --- Bitmask and Symmetry Functions ---
+    function boardToBitmask() {
+        let bitmask = 0n; for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { if (isLegal(r, c)) { const index = r * BOARD_SIZE + c; bitmask |= (1n << BigInt(index)); } } } return bitmask;
+    }
+    function transformBitmask(bb, type) {
+        let result = 0n; const N_LOCAL = BOARD_SIZE; for (let r = 0; r < N_LOCAL; ++r) { for (let c = 0; c < N_LOCAL; ++c) { const original_index = r * N_LOCAL + c; if ((bb >> BigInt(original_index)) & 1n) { let tr, tc; switch (type) { case 0: tr = r; tc = c; break; case 1: tr = c; tc = N_LOCAL - 1 - r; break; case 2: tr = N_LOCAL - 1 - r; tc = N_LOCAL - 1 - c; break; case 3: tr = N_LOCAL - 1 - c; tc = r; break; case 4: tr = r; tc = N_LOCAL - 1 - c; break; case 5: tr = N_LOCAL - 1 - r; tc = c; break; case 6: tr = c; tc = r; break; case 7: tr = N_LOCAL - 1 - c; tc = N_LOCAL - 1 - r; break; default: console.error("Invalid transformation type"); return bb; } const transformed_index = tr * N_LOCAL + tc; if (tr >= 0 && tr < N_LOCAL && tc >=0 && tc < N_LOCAL) { result |= (1n << BigInt(transformed_index)); } } } } return result;
+    }
+    function getCanonicalBitmask(bb) {
+        if (bb === 0n) return 0n; let canonical_bb = bb; for (let i = 1; i < 8; ++i) { const symmetric_bb = transformBitmask(bb, i); if (symmetric_bb < canonical_bb) canonical_bb = symmetric_bb; } return canonical_bb;
+    }
+
+    // --- Helper: Get Grundy value for a canonical bitmask, handling missing states ---
+    // If exactly one of SAVE_GRUNDY_ZERO_STATES and SAVE_NON_ZERO_GRUNDY_STATES is true,
+    // then missing states are assumed to have the value not saved.
+    function getGrundyValue(canonicalMask) {
+        let grundy = memoData.get(canonicalMask.toString());
+
+        // Determine assumption for missing states
+        if (grundy === undefined) {
+            if (SAVE_GRUNDY_ZERO_STATES && !SAVE_NON_ZERO_GRUNDY_STATES) {
+                // Only Grundy=0 states are saved, so missing means Grundy>0 (assume 1)
+                grundy = 1;
+            } else if (!SAVE_GRUNDY_ZERO_STATES && SAVE_NON_ZERO_GRUNDY_STATES) {
+                // Only Grundy>0 states are saved, so missing means Grundy=0
+                grundy = 0;
+            } else {
+                // Both or neither are true: do not assume, leave as undefined
+                grundy = undefined;
+            }
+        }
+        return grundy;
+    }
+
+    // --- Game Logic Functions ---
+    function initCoordinates() {
+      coordLeftDiv.innerHTML = ""; for (let r = BOARD_SIZE; r >= 1; r--) { const span = document.createElement("span"); span.textContent = r; coordLeftDiv.appendChild(span); }
+      coordBottomDiv.innerHTML = ""; for (let c = 0; c < BOARD_SIZE; c++) { const span = document.createElement("span"); span.textContent = String.fromCharCode(97 + c); coordBottomDiv.appendChild(span); }
+    }
+    function initBoard() {
+      board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(EMPTY)); boardDiv.innerHTML = ""; const cellElements = [];
+      for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { const cellDiv = document.createElement("div"); cellDiv.classList.add("cell"); if ((r + c) % 2 === 0) cellDiv.classList.add("light"); else cellDiv.classList.add("dark"); const cellInner = document.createElement("div"); cellInner.className = "cell-inner"; cellDiv.id = `cell-${r}-${c}`; cellDiv.appendChild(cellInner); cellDiv.addEventListener("click", () => userMove(r, c)); cellElements.push(cellDiv); } }
+      for (let display_r = BOARD_SIZE - 1; display_r >= 0; display_r--) { for (let c = 0; c < BOARD_SIZE; c++) { const index = display_r * BOARD_SIZE + c; boardDiv.appendChild(cellElements[index]); } }
+    }
+    function indexToCoord(r, c) { return String.fromCharCode(97 + c) + (r + 1).toString(); }
+    function isLegal(r, c) {
+      if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE || board[r][c] !== EMPTY) return false;
+      for (let dr = -1; dr <= 1; dr++) { for (let dc = -1; dc <= 1; dc++) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) { if (board[nr][nc] !== EMPTY) return false; } } } return true;
+    }
+    function getLegalMoves() {
+      const moves = []; for (let r = 0; r < BOARD_SIZE; r++) { for (let c = 0; c < BOARD_SIZE; c++) { if (isLegal(r, c)) moves.push({r, c}); } } return moves;
+    }
+    function placeKing(r, c, color) {
+      if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) { console.error("Invalid coordinates in placeKing:", r, c); return; } const imgSrc = (color === "white") ? WHITE_KING_IMG : BLACK_KING_IMG; board[r][c] = imgSrc; const cellDiv = document.getElementById(`cell-${r}-${c}`); if (!cellDiv) { console.error("Could not find cell element for:", r, c); return; } const cellInner = cellDiv.querySelector('.cell-inner'); if (cellInner) { cellInner.innerHTML = ''; const img = document.createElement("img"); img.src = imgSrc; img.alt = color + " king"; cellInner.appendChild(img); } else { console.error("Could not find inner cell element for:", r, c); } cellDiv.style.cursor = "default"; const newCell = cellDiv.cloneNode(true); cellDiv.parentNode.replaceChild(newCell, cellDiv);
+    }
+
+     function toggleLegalMoves() {
+         if (gameOver) return;
+         // Remove existing indicators (both types)
+         document.querySelectorAll(".legal-indicator, .winning-move-indicator").forEach(ind => ind.remove());
+
+         if (showLegal) {
+             toggleMovesBtn.textContent = "Show Available Moves";
+             showLegal = false;
+         } else {
+             const moves = getLegalMoves();
+             moves.forEach(move => {
+                 const cellInner = document.querySelector(`#cell-${move.r}-${move.c} .cell-inner`);
+                 if (cellInner && cellInner.innerHTML.trim() === '') {
+                     const dot = document.createElement("div");
+                     dot.className = "legal-indicator";
+                     cellInner.appendChild(dot);
+                 }
+             });
+             toggleMovesBtn.textContent = "Hide Available Moves";
+             showLegal = true;
+         }
+     }
+
+    function updateMessage(msg) { messageDiv.textContent = msg; }
+    function userMove(r, c) {
+      if (gameOver || (!twoPlayerMode && currentTurn !== userColor) || !isLegal(r, c)) return;
+      placeKing(r, c, currentTurn);
+      nextTurn();
+    }
+    function aiMoveEasy() {
+      const moves = getLegalMoves(); if (moves.length > 0) { const move = moves[Math.floor(Math.random() * moves.length)]; placeKing(move.r, move.c, currentTurn); nextTurn(); }
+    }
+    function aiMoveHard() {
+        if (!memoData || memoData.size === 0) { 
+            console.warn("aiMoveHard called but memoData not ready. Falling back to easy AI."); 
+            aiMoveEasy(); 
+            return; 
+        }
+        const legalMoves = getLegalMoves(); 
+        if (legalMoves.length === 0) { 
+            console.warn("aiMoveHard called with no legal moves."); 
+            return; 
+        }
+        let winningMoves = []; 
+        let fallbackMove = legalMoves[0];
+        const currentBoardMask = boardToBitmask();
+
+        // First, collect all moves with Grundy value 0 (winning moves)
+        for (const move of legalMoves) {
+            const r = move.r; 
+            const c = move.c; 
+            const index = r * BOARD_SIZE + c;
+            if (index < 0 || index >= attackMasks.length || attackMasks[index] === undefined) { 
+                console.error(`Invalid index or missing attack mask for move (${r},${c}), index ${index}`); 
+                continue; 
+            }
+            const nextBoardMask = currentBoardMask & ~attackMasks[index]; 
+            const canonicalNextMask = getCanonicalBitmask(nextBoardMask); 
+            let grundyValue;
+            if (canonicalNextMask === 0n) { 
+                grundyValue = 0; 
+            } else { 
+                grundyValue = getGrundyValue(canonicalNextMask); 
+            }
+            if (grundyValue === 0) { 
+                winningMoves.push(move); 
+            }
+        }
+
+        if (winningMoves.length > 0) {
+            // Pick a random winning move
+            const chosenMove = winningMoves[Math.floor(Math.random() * winningMoves.length)];
+            console.log(`AI (Hard): Choosing an optimal move among ${winningMoves.length} options`);
+            placeKing(chosenMove.r, chosenMove.c, currentTurn); 
+            nextTurn();
+            return;
+        }
+
+        // No winning move: pick move with smallest percentage of next-moves with Grundy=0
+        let bestMoves = [];
+        let minWinningPercent = 1.1; // > 1
+        for (const move of legalMoves) {
+            const r = move.r; 
+            const c = move.c; 
+            const index = r * BOARD_SIZE + c;
+            if (index < 0 || index >= attackMasks.length || attackMasks[index] === undefined) continue;
+            const nextBoardMask = currentBoardMask & ~attackMasks[index]; 
+            const canonicalNextMask = getCanonicalBitmask(nextBoardMask); 
+            // Simulate this move, get all legal moves for opponent
+            // Temporarily update the board
+            board[r][c] = (currentTurn === "white") ? WHITE_KING_IMG : BLACK_KING_IMG;
+            let oppLegalMoves = [];
+            for (let rr = 0; rr < BOARD_SIZE; rr++) {
+                for (let cc = 0; cc < BOARD_SIZE; cc++) {
+                    if (isLegal(rr, cc)) oppLegalMoves.push({r: rr, c: cc});
+                }
+            }
+            let winCount = 0;
+            for (const oppMove of oppLegalMoves) {
+                const oppIndex = oppMove.r * BOARD_SIZE + oppMove.c;
+                if (oppIndex < 0 || oppIndex >= attackMasks.length || attackMasks[oppIndex] === undefined) continue;
+                const oppNextMask = nextBoardMask & ~attackMasks[oppIndex];
+                const oppCanonical = getCanonicalBitmask(oppNextMask);
+                let oppGrundy;
+                if (oppCanonical === 0n) oppGrundy = 0;
+                else oppGrundy = getGrundyValue(oppCanonical);
+                if (oppGrundy === 0) winCount++;
+            }
+            // Restore the board
+            board[r][c] = EMPTY;
+            let percent = oppLegalMoves.length === 0 ? 0 : winCount / oppLegalMoves.length;
+            if (percent < minWinningPercent) {
+                minWinningPercent = percent;
+                bestMoves = [move];
+            } else if (percent === minWinningPercent) {
+                bestMoves.push(move);
+            }
+        }
+        let chosenMove;
+        if (bestMoves.length > 0) {
+            chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            console.log(`AI (Hard): No optimal move. Choosing move among ${bestMoves.length} options leading to the smallest percentage of winning moves: ${100*minWinningPercent}`);
+        } else {
+            // Fallback: random move
+            chosenMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
+            console.warn("AI (Hard): No best move found, choosing random move.");
+        }
+        placeKing(chosenMove.r, chosenMove.c, currentTurn); 
+        nextTurn();
+    }
+
+    async function aiMove() {
+      if (gameOver) return; const moves = getLegalMoves(); if (moves.length === 0) { gameOver = true; updateMessage("AI cannot move. You win!"); resetBtn.style.display = "inline-block"; toggleMovesBtn.style.display = 'none'; hintBtn.disabled = true; return; } updateMessage("AI is thinking...");
+      if (difficulty === "easy") { aiMoveEasy(); } else { if (!memoData && memoDataPromise) { console.log("AI (Hard): Waiting for memoData to load..."); try { await memoDataPromise; console.log("AI (Hard): memoData finished loading."); if (memoData && memoData.size > 0) { aiMoveHard(); } else { console.warn("Hard AI using Easy: memoData still not available after wait."); aiMoveEasy(); } } catch (error) { console.error("Error occurred while waiting for memoData:", error); console.warn("Using Easy AI due to error during data loading wait."); aiMoveEasy(); } } else if (memoData && memoData.size > 0) { aiMoveHard(); } else { console.warn("Hard difficulty selected, but memo data not available. Using Easy AI."); aiMoveEasy(); } }
+    }
+
+    function resetHints() {
+        hintMessageDiv.textContent = ""; hintMessageDiv.style.display = "none";
+        winningMovesListDiv.textContent = ""; winningMovesListDiv.style.display = "none";
+        showWinningMovesBtn.style.display = "none";
+        // Reset button texts
+        hintBtn.textContent = "Show Winning Side";
+        showWinningMovesBtn.textContent = "Show Winning Moves";
+        hintBtn.style.display = 'inline-block';
+        // Remove winning move highlights
+        document.querySelectorAll(".winning-move-indicator").forEach(ind => ind.remove());
+        // Disable hint button if game over or memoData isn't loaded/available
+        hintBtn.disabled = gameOver || !(memoData && memoData.size > 0);
+    }
+
+     
+    function nextTurn() {
+      resetHints();
+      if (showLegal) {
+          document.querySelectorAll(".legal-indicator").forEach(dot => dot.remove());
+          toggleMovesBtn.textContent = "Show Available Moves";
+          showLegal = false;
+      }
+
+      currentTurn = (currentTurn === "white") ? "black" : "white";
+      const moves = getLegalMoves();
+      if (moves.length === 0) {
+        gameOver = true;
+        if (twoPlayerMode) {
+          updateMessage("No legal moves left. " + (currentTurn === "white" ? "Black" : "White") + " wins!");
+        } else {
+          updateMessage(currentTurn === userColor ? "You cannot move. AI wins!" : "AI cannot move. You win!");
+        }
+        resetBtn.style.display = "inline-block";
+        toggleMovesBtn.style.display = 'none';
+        hintBtn.style.display = 'none';
+        showWinningMovesBtn.style.display = "none";
+        hintBtn.disabled = true;
+        return;
+      }
+      if (twoPlayerMode) {
+        updateMessage((currentTurn.charAt(0).toUpperCase() + currentTurn.slice(1)) + "'s turn.");
+      } else {
+        updateMessage((currentTurn === userColor) ? "Your turn." : "AI's turn.");
+        if (currentTurn !== userColor && !gameOver) {
+            setTimeout(() => { (async () => { await aiMove(); })(); }, 500);
+        }
+      }
+    }
+
+    function startGame() {
+      gameOver = false;
+      initBoard();
+      initCoordinates();
+
+      // Mode logic
+      const mode = getSelectedMode();
+      twoPlayerMode = (mode === "twoplayer");
+      if (!twoPlayerMode) {
+        userColor = getSelectedColor();
+        difficulty = getSelectedDifficulty();
+      } else {
+        // Defaults for two player mode
+        userColor = "white";
+        difficulty = "twoplayer";
+      }
+
+      currentTurn = "white";
+      updateMessage(twoPlayerMode ? "White's turn." : (currentTurn === userColor) ? "Your turn." : "AI's turn.");
+      resetBtn.style.display = "none";
+      toggleMovesBtn.style.display = 'inline-block';
+      showLegal = false;
+      toggleMovesBtn.textContent = "Show Available Moves";
+      document.querySelectorAll(".legal-indicator, .winning-move-indicator").forEach(ind => ind.remove());
+      resetHints();
+
+      if (!twoPlayerMode && currentTurn !== userColor) {
+          setTimeout(() => { (async () => { await aiMove(); })(); }, 500);
+      }
+    }
+
+    function resetGame() {
+        console.log("Resetting game state...");
+        gameOver = false;
+        showLegal = false;
+        initBoard(); // Rebuilds the board UI and clears internal state/listeners
+        updateMessage(""); // Clear message
+        resetHints(); // Reset hints UI
+        document.getElementById("game").style.display = "none"; // Hide game
+        document.getElementById("setup").style.display = "block"; // Show setup
+        // Reset button is hidden by default in setup view
+        // No need to reload memoData
+    }
+
+    // --- Initialization ---
+    precomputeAttackMasks();
+    loadMemoData(); // Load data once on script load
+    setModeUI(); // Set initial state
+
+    // --- Event Listeners ---
+    modeAI.addEventListener('change', setModeUI);
+    modeTwoPlayer.addEventListener('change', setModeUI);
+
+    startBtn.addEventListener("click", () => {
+      const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
+       // Allow starting even if data is loading/failed
+       // Alert removed
+      difficulty = selectedDifficulty;
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      startGame();
+    });
+
+    // --- Use soft reset ---
+    resetBtn.addEventListener("click", resetGame);
+
+    toggleMovesBtn.addEventListener("click", toggleLegalMoves);
+
+    // --- Hint Button Event Listeners (Toggle + Simplified Text + Highlight) ---
+    hintBtn.addEventListener("click", () => {
+        if (gameOver) return;
+
+        // Toggle off if already showing winning side info
+        if(hintMessageDiv.style.display !== 'none') {
+            resetHints(); // Hides message, list, button, resets text, removes highlights
+            return;
+        }
+
+        if (!memoData || memoData.size === 0) {
+            hintMessageDiv.textContent = `Hint requires AI data ${MEMO_FILENAME}, which failed to load.`;
+            hintMessageDiv.style.display = "block";
+            hintBtn.textContent = "Hide Winning Side"; // Change text even if data failed
+            return;
+        }
+        try {
+            const currentMask = boardToBitmask();
+            const canonicalMask = getCanonicalBitmask(currentMask);
+            const currentGrundy = getGrundyValue(canonicalMask);
+
+            resetHints(); // Clear previous hints first
+
+            if (currentGrundy === undefined) {
+                hintMessageDiv.textContent = `Hint unavailable: Current position analysis data not found.`;
+            } else if (currentGrundy === 0) {
+                hintMessageDiv.textContent = "Opponent has a winning strategy."; // Simplified
+                showWinningMovesBtn.style.display = "none";
+            } else {
+                hintMessageDiv.textContent = "You have a winning strategy!"; // Simplified
+                showWinningMovesBtn.style.display = "inline-block"; // Show button
+                showWinningMovesBtn.textContent = "Show Winning Moves"; // Reset text
+            }
+            hintMessageDiv.style.display = "block";
+            hintBtn.textContent = "Hide Winning Side"; // Update button text
+            hintBtn.disabled = false;
+
+        } catch (error) {
+             console.error("Error getting hint:", error);
+             hintMessageDiv.textContent = "Error calculating hint.";
+             hintMessageDiv.style.display = "block";
+             hintBtn.textContent = "Hide Winning Side";
+        }
+    });
+
+    showWinningMovesBtn.addEventListener("click", () => {
+        if (gameOver || !memoData || memoData.size === 0) return;
+
+        // Remove previous winning move indicators if any
+        document.querySelectorAll(".winning-move-indicator").forEach(ind => ind.remove());
+
+        // Toggle off if already showing
+        if (winningMovesListDiv.style.display !== 'none') {
+            winningMovesListDiv.style.display = 'none';
+            winningMovesListDiv.textContent = '';
+            showWinningMovesBtn.textContent = "Show Winning Moves"; // Reset text
+            return;
+        }
+
+        // Calculate and show
+        try {
+            const legalMoves = getLegalMoves();
+            const currentMask = boardToBitmask();
+            const winningMoves = []; // Store {r, c} objects
+            let foundUndefined = false;
+
+            for (const move of legalMoves) {
+                const index = move.r * BOARD_SIZE + move.c;
+                const nextMask = currentMask & ~attackMasks[index];
+                const canonicalNext = getCanonicalBitmask(nextMask);
+                let nextGrundy;
+                if (canonicalNext === 0n) { nextGrundy = 0; }
+                else { nextGrundy = getGrundyValue(canonicalNext); }
+
+                if (nextGrundy === 0) {
+                    winningMoves.push(move); // Store move object
+                } else if (nextGrundy === undefined) {
+                    foundUndefined = true;
+                }
+            }
+
+            if (winningMoves.length > 0) {
+                // Get coordinate strings and sort them
+                const winningMovesCoord = winningMoves.map(mv => indexToCoord(mv.r, mv.c));
+                winningMovesCoord.sort(); // Sort alphabetically
+                winningMovesListDiv.textContent = "Winning moves: " + winningMovesCoord.join(', ');
+
+                // Add highlights to the board
+                winningMoves.forEach(move => {
+                     const cellInner = document.querySelector(`#cell-${move.r}-${move.c} .cell-inner`);
+                     if (cellInner && !cellInner.querySelector(".winning-move-indicator")) {
+                         const indicator = document.createElement("div");
+                         indicator.className = "winning-move-indicator";
+                         cellInner.appendChild(indicator);
+                     }
+                });
+
+            } else {
+                 winningMovesListDiv.textContent = "No winning moves found.";
+                 if(foundUndefined) winningMovesListDiv.textContent += " (Some analysis data missing)";
+            }
+            winningMovesListDiv.style.display = "block";
+            showWinningMovesBtn.textContent = "Hide Winning Moves"; // Update text
+
+        } catch (error) {
+            console.error("Error showing winning moves:", error);
+            winningMovesListDiv.textContent = "Error calculating winning moves.";
+            winningMovesListDiv.style.display = "block";
+            showWinningMovesBtn.textContent = "Hide Winning Moves";
+        }
+    });
+
+    // Initial setup
+    resetHints(); // Ensure hints are hidden initially
+
+  </script>
+</body>
+</html>
