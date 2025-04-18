@@ -564,10 +564,14 @@
             const moves = getLegalMoves();
             moves.forEach(move => {
                 const cellInner = document.querySelector(`#cell-${move.r}-${move.c} .cell-inner`);
-                if (cellInner && cellInner.innerHTML.trim() === '') {
-                    const dot = document.createElement("div");
-                    dot.className = "legal-indicator";
-                    cellInner.appendChild(dot);
+                if (cellInner) {
+                    // Always add a legal-indicator dot, even if a winning-move-indicator is present
+                    // Avoid duplicate dots
+                    if (!cellInner.querySelector(".legal-indicator")) {
+                        const dot = document.createElement("div");
+                        dot.className = "legal-indicator";
+                        cellInner.appendChild(dot);
+                    }
                 }
             });
             toggleMovesBtn.textContent = "Hide Available Moves";
